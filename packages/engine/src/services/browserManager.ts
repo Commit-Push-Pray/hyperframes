@@ -1117,6 +1117,7 @@ export interface BuildChromeArgsOptions {
   platform?: NodeJS.Platform;
   /** The composition declares `data-requires-webgpu`; forces the WebGPU flag even in "software" mode. */
   requiresWebGpu?: boolean;
+  injectsVideoFrames?: boolean;
   sandbox?: boolean;
 }
 
@@ -1247,6 +1248,9 @@ export function buildChromeArgs(options: BuildChromeArgsOptions, config?: GpuCon
     );
   } else {
     chromeArgs.push(WHOLE_TILE_RASTER_FLAG);
+    if (platform === "darwin" && options.injectsVideoFrames === false) {
+      chromeArgs.push("--disable-frame-rate-limit");
+    }
   }
 
   if (gpuDisabled) {
