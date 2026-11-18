@@ -93,6 +93,7 @@ describe("createEditingPortClient", () => {
           "max-z-index",
           "crop-lift",
           "gsap-set",
+          "patch-tweens",
         ],
       });
     } finally {

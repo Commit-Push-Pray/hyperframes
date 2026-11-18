@@ -40,6 +40,7 @@ import { gsapSnapshot } from "./editing/gsapSnapshot";
 import { motionPathHome } from "./editing/motionPathHome";
 import { cropLift } from "./editing/cropLift";
 import { gsapSet } from "./editing/gsapSet";
+import { patchTweens } from "./editing/patchTween";
 import {
   getLogicalOpacity,
   markedForStudio,
@@ -220,6 +221,7 @@ const HANDLERS: Handlers = {
   "max-z-index": () => maxZIndex(),
   "crop-lift": cropLift,
   "gsap-set": gsapSet,
+  "patch-tweens": patchTweens,
 };
 
 function serve(port: MessagePort): void {

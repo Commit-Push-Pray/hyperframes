@@ -200,6 +200,7 @@ describe("installEditingAgent", () => {
           "max-z-index",
           "crop-lift",
           "gsap-set",
+          "patch-tweens",
         ],
       },
     });
