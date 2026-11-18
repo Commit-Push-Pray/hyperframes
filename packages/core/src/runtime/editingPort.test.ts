@@ -94,6 +94,7 @@ describe("createEditingPortClient", () => {
           "crop-lift",
           "gsap-set",
           "patch-tweens",
+          "soft-reload",
         ],
       });
     } finally {
