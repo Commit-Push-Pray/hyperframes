@@ -1263,6 +1263,10 @@ function inlineSubCompositions(
       hostIdentityMap: hostIdentityByElement,
       readVariableDefaults: readDeclaredDefaults,
       parseHostVariables: parseHostVariableValues,
+      resolveFilePath: (srcPath: string) => {
+        const file = resolveCompositionFile(projectDir, srcPath, assetRoot);
+        return file && relative(projectDir, file).split(sep).join("/");
+      },
       resolveHtml: (srcPath: string) => {
         const compHtml = resolveMountHtml(srcPath);
         if (compHtml) budget.charge(srcPath, Buffer.byteLength(compHtml));
@@ -2236,19 +2240,26 @@ function rewriteUnresolvableGsapToCdn(
  * it to compiled/index.html. Use the same sibling-first/project-root-fallback
  * rule as mounted sub-compositions so both supported entry modes agree.
  */
-function rebaseDirectEntryAssetPaths(html: string, projectDir: string, htmlPath: string): string {
+function rebaseDirectEntryAssetPaths(
+  html: string,
+  projectDir: string,
+  htmlPath: string,
+  budget: CompositionExpansionBudget,
+): string {
   if (!isPathInside(htmlPath, projectDir)) return html;
   const entryPath = relative(projectDir, htmlPath).replace(/\\/g, "/");
   if (!entryPath.includes("/")) return html;
 
   const { document } = parseHTML(html);
   const assetExists = projectAssetExists(projectDir);
+  const charge = (bytes: number) => budget.chargeGenerated(entryPath, bytes);
   rewriteAssetPaths(
     document.querySelectorAll("[src], [href], [srcset]"),
     entryPath,
     (el: Element, attr: string) => el.getAttribute(attr),
     (el: Element, attr: string, value: string) => el.setAttribute(attr, value),
     assetExists,
+    charge,
   );
   rewriteInlineStyleAssetUrls(
     document.querySelectorAll("[style]"),
@@ -2256,9 +2267,15 @@ function rebaseDirectEntryAssetPaths(html: string, projectDir: string, htmlPath:
     (el: Element) => el.getAttribute("style"),
     (el: Element, value: string) => el.setAttribute("style", value),
     assetExists,
+    charge,
   );
   for (const style of document.querySelectorAll("style")) {
-    style.textContent = rewriteCssAssetUrls(style.textContent || "", entryPath, assetExists);
+    style.textContent = rewriteCssAssetUrls(
+      style.textContent || "",
+      entryPath,
+      assetExists,
+      charge,
+    );
   }
   return document.toString();
 }
@@ -2335,8 +2352,13 @@ export async function compileForRender(
     throw new Error(`Entry file ${htmlPath} is not an .html file, so it is refused`);
   }
   assertCompositionFileSize(htmlPath, basename(htmlPath));
-  const entryHtml = rebaseDirectEntryAssetPaths(readTextFile(htmlPath), projectDir, htmlPath);
   const budget = new CompositionExpansionBudget();
+  const entryHtml = rebaseDirectEntryAssetPaths(
+    readTextFile(htmlPath),
+    projectDir,
+    htmlPath,
+    budget,
+  );
   const rawHtml = bindVariableMediaSources(
     normalizeCompositionSrcs(rewriteUnresolvableGsapToCdn(entryHtml, projectDir), projectDir),
     options.variables ?? {},
