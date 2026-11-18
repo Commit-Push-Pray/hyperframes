@@ -199,6 +199,7 @@ describe("installEditingAgent", () => {
           "motion-path-home",
           "max-z-index",
           "crop-lift",
+          "gsap-set",
         ],
       },
     });

@@ -39,6 +39,7 @@ import { gestureStart } from "./editingGestureStart";
 import { gsapSnapshot } from "./editing/gsapSnapshot";
 import { motionPathHome } from "./editing/motionPathHome";
 import { cropLift } from "./editing/cropLift";
+import { gsapSet } from "./editing/gsapSet";
 import {
   getLogicalOpacity,
   markedForStudio,
@@ -218,6 +219,7 @@ const HANDLERS: Handlers = {
   "motion-path-home": ({ selector }) => motionPathHome(selector),
   "max-z-index": () => maxZIndex(),
   "crop-lift": cropLift,
+  "gsap-set": gsapSet,
 };
 
 function serve(port: MessagePort): void {
