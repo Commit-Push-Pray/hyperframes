@@ -95,6 +95,9 @@ describe("createEditingPortClient", () => {
           "gsap-set",
           "patch-tweens",
           "soft-reload",
+          "hold-scenes",
+          "mark-scenes-stale",
+          "swap-scenes",
         ],
       });
     } finally {
