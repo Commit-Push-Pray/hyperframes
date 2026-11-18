@@ -6,6 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 // The frame's real runtime agent, serving the opaque frame from this document as Studio's marked preview page.
 import { installMarkedEditingAgent } from "../../../../core/src/runtime/editingAgent.test-helpers";
 import { usePlayerStore, type TimelineElement } from "../store/playerStore";
+import { crossOriginFrame } from "./sealedFrameHarness";
 import { detachedFakeIframe } from "./timelinePlayerTestHarness";
 import { useTimelineSyncCallbacks } from "./useTimelineSyncCallbacks";
 
@@ -97,30 +98,6 @@ it("binds a sealed preview's timeline row to its element, as an open preview doe
   });
 });
 
-/** The opaque frame as a browser hands it over: every property but `postMessage` throws, `__clipTree` included. */
-function crossOriginFrame() {
-  const target: Record<string, unknown> = {};
-  const frame = new Proxy(target, {
-    get: (raw, key) => {
-      if (key === "postMessage") return raw.postMessage;
-      throw new DOMException("blocked", "SecurityError");
-    },
-  });
-  const iframe = detachedFakeIframe(frame);
-  Object.defineProperty(iframe, "contentDocument", { value: null });
-  const parent = {
-    postMessage: (data: unknown, _origin: string, ports: MessagePort[]) =>
-      window.dispatchEvent(
-        new MessageEvent("message", { source: frame as unknown as Window, data, ports }),
-      ),
-  } as unknown as Window;
-  const agent = installMarkedEditingAgent(parent);
-  target.postMessage = (data: unknown) =>
-    window.dispatchEvent(new MessageEvent("message", { source: parent, data }));
-  closers.push(() => agent.dispose());
-  return iframe;
-}
-
 // fails without the fix: reading the frame's `__clipTree` threw, so a sealed scene's children and parents stayed empty.
 it("fills a sealed scene's children and the runtime's clip parents", async () => {
   document.body.innerHTML = `<div data-composition-id="main" data-composition-file="index.html">
@@ -136,7 +113,7 @@ it("fills a sealed scene's children and the runtime's clip parents", async () =>
   closers.push(() => delete (window as unknown as { __clipTree?: unknown }).__clipTree);
   usePlayerStore.getState().setClipParentMap(new Map());
   usePlayerStore.getState().setDomClipChildren([]);
-  const { process } = processWith(crossOriginFrame());
+  const { process } = processWith(crossOriginFrame(closers));
 
   process({
     clips: [
