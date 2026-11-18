@@ -47,6 +47,7 @@ import {
   assetContentType,
 } from "../utils/compositionServer.js";
 import { isPrivateCompositionFile } from "../utils/privateProjectFile.js";
+import { refuseStrayRequestsInertly } from "../utils/strayRequestRefusal.js";
 import {
   resolveProxy,
   ProxyCapacityError,
@@ -145,37 +146,9 @@ export default defineCommand({
       return;
     }
 
-    const { Hono } = await import("hono");
     const { createAdaptorServer } = await import("@hono/node-server");
-
-    const app = new Hono();
-    refuseUnknownHosts(app);
-
-    // Serve the player JS
-    app.get("/player.js", (ctx) =>
-      revalidatedResponse(
-        readFileSync(playerPath, "utf-8"),
-        "application/javascript",
-        ctx.req.header("If-None-Match"),
-      ),
-    );
-
-    // Serve the runtime JS
-    app.get("/runtime.js", (ctx) =>
-      revalidatedResponse(
-        readFileSync(runtimePath, "utf-8"),
-        "application/javascript",
-        ctx.req.header("If-None-Match"),
-      ),
-    );
-
     const autoProxy = resolveAutoProxy(project.dir, args.proxy as boolean | undefined);
-    await registerCompositionRoute(app, project, autoProxy);
-
-    // Main page — the player wrapper
-    app.get("/", (ctx) => {
-      return ctx.html(buildPlayerPage(project.name));
-    });
+    const app = await buildPlayApp(project, autoProxy, { playerPath, runtimePath });
 
     clack.intro(c.bold("hyperframes play"));
     const s = clack.spinner();
@@ -207,6 +180,39 @@ export default defineCommand({
     return new Promise<void>(() => {});
   },
 });
+
+/** The player page, its two bundles and the project's files, on one loopback origin. */
+export async function buildPlayApp(
+  project: ProjectDir,
+  autoProxy: boolean,
+  bundles: { playerPath: string; runtimePath: string },
+): Promise<Hono> {
+  const { Hono } = await import("hono");
+  const app = new Hono();
+  refuseStrayRequestsInertly(app);
+  refuseUnknownHosts(app);
+
+  app.get("/player.js", (ctx) =>
+    revalidatedResponse(
+      readFileSync(bundles.playerPath, "utf-8"),
+      "application/javascript",
+      ctx.req.header("If-None-Match"),
+    ),
+  );
+  app.get("/runtime.js", (ctx) =>
+    revalidatedResponse(
+      readFileSync(bundles.runtimePath, "utf-8"),
+      "application/javascript",
+      ctx.req.header("If-None-Match"),
+    ),
+  );
+
+  await registerCompositionRoute(app, project, autoProxy);
+
+  // Main page — the player wrapper
+  app.get("/", (ctx) => ctx.html(buildPlayerPage(project.name)));
+  return app;
+}
 
 /**
  * Registers the `/composition/*` route: serves composition HTML (runtime +
