@@ -92,6 +92,7 @@ describe("createEditingPortClient", () => {
           "motion-path-home",
           "max-z-index",
           "crop-lift",
+          "edit-element",
         ],
       });
     } finally {
